@@ -1,0 +1,67 @@
+import React, { useState } from 'react';
+import { Group } from '../types';
+import CreateGroupModal from './CreateGroupModal';
+import { PlusIcon } from './icons/PlusIcon';
+
+interface DashboardProps {
+  groups: Group[];
+  onCreateGroup: (newGroup: Group) => void;
+  onSelectGroup: (groupId: string) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ groups, onCreateGroup, onSelectGroup }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">گروه‌های من</h2>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors shadow"
+        >
+          <PlusIcon />
+          <span>ایجاد گروه جدید</span>
+        </button>
+      </div>
+
+      {groups.length === 0 ? (
+        <div className="text-center py-10 px-6 bg-white rounded-lg shadow">
+          <h3 className="text-xl text-gray-700">هیچ گروهی یافت نشد.</h3>
+          <p className="text-gray-500 mt-2">برای شروع، یک گروه جدید ایجاد کنید.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {groups.map((group) => (
+            <div
+              key={group.id}
+              onClick={() => onSelectGroup(group.id)}
+              className="bg-white rounded-xl shadow-md p-6 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-300"
+            >
+              <h3 className="text-xl font-bold text-purple-800">{group.name}</h3>
+              <p className="text-gray-600 mt-2">
+                تعداد اعضا: <span className="font-semibold">{group.members.length}</span>
+              </p>
+              <p className="text-gray-600">
+                مبلغ سهم: <span className="font-semibold">{group.shareAmount.toLocaleString()} {group.currency.symbol}</span>
+              </p>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                 <p className="text-sm text-gray-500">کد گروه: <span className="font-mono bg-gray-100 p-1 rounded">{group.accessCode}</span></p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isModalOpen && (
+        <CreateGroupModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreateGroup={onCreateGroup}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;

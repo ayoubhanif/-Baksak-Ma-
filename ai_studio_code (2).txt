@@ -1,0 +1,5 @@
+{
+  "name": "Baksak Ma",
+  "description": "A digital tool to manage 'Baksak' or rotating savings groups (ROSCA). Users can create groups, manage members, track monthly payments, run a lottery for turn order, and export financial reports. All data is stored locally in the user's browser for privacy.",
+  "requestFramePermissions": []
+}

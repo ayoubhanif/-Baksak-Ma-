@@ -1,0 +1,90 @@
+import { Group } from '../types';
+
+// Extend the jsPDF type definitions to include autotable
+declare global {
+  interface Window {
+    jspdf: any;
+  }
+}
+
+export const exportGroupToPDF = (group: Group) => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Add Vazirmatn font if available (from index.html)
+  // jsPDF doesn't easily support external fonts without converting them first.
+  // For simplicity, we rely on the default fonts which might not render Persian correctly.
+  // A proper implementation would require font conversion and embedding.
+  // We'll use a generic font family and hope the browser's PDF viewer can handle it.
+  doc.setFont('Helvetica'); 
+  
+  const title = `گزارش گروه: ${group.name}`;
+  const startDate = new Date(group.startDate).toLocaleDateString('fa-IR');
+  const details = `
+    تاریخ شروع: ${startDate}
+    مبلغ سهم: ${group.shareAmount.toLocaleString()} ${group.currency.symbol}
+    تعداد اعضا: ${group.members.length} نفر
+    کد گروه: ${group.accessCode}
+  `;
+
+  // jsPDF doesn't have great built-in RTL support, so we align text manually
+  doc.setFontSize(18);
+  doc.text(title, doc.internal.pageSize.getWidth() - 14, 20, { align: 'right' });
+  doc.setFontSize(12);
+  doc.text(details, doc.internal.pageSize.getWidth() - 14, 30, { align: 'right' });
+
+
+  // Member turn table
+  const memberTurnHead = [['#', 'نام عضو']];
+  const memberTurnBody = group.members
+    .slice()
+    .sort((a, b) => (a.turn ?? 999) - (b.turn ?? 999))
+    .map(m => [m.turn ?? 'N/A', m.name]);
+
+  doc.autoTable({
+    head: memberTurnHead,
+    body: memberTurnBody,
+    startY: 55,
+    headStyles: { halign: 'center', font: 'Helvetica'},
+    bodyStyles: { halign: 'right', font: 'Helvetica' },
+    theme: 'grid',
+    // Workaround for RTL text in columns
+    columns: [
+        { header: '#', dataKey: 0 },
+        { header: 'نام عضو', dataKey: 1 },
+    ],
+  });
+
+  // Payment table
+  const months = Array.from({ length: group.members.length }, (_, i) => `ماه ${i + 1}`);
+  const paymentHead = [['نام عضو', ...months]];
+  const paymentBody = group.members
+    .slice()
+    .sort((a, b) => (a.turn ?? 999) - (b.turn ?? 999))
+    .map(member => {
+      const payments = months.map((_, monthIndex) => {
+        const payment = group.payments.find(p => p.memberId === member.id && p.month === monthIndex);
+        return payment?.paid ? '✓' : '✗';
+      });
+      return [member.name, ...payments];
+    });
+
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.text("جدول پرداخت‌ها", doc.internal.pageSize.getWidth() - 14, 20, { align: 'right' });
+
+  doc.autoTable({
+    head: paymentHead,
+    body: paymentBody,
+    startY: 30,
+    headStyles: { halign: 'center', font: 'Helvetica' },
+    bodyStyles: { font: 'Helvetica' },
+    theme: 'grid',
+    // Manual alignment for columns
+    columnStyles: {
+        0: { halign: 'right' }
+    }
+  });
+
+  doc.save(`Baksak_Report_${group.name}.pdf`);
+};

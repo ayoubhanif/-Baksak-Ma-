@@ -1,0 +1,68 @@
+import React, { useState, useCallback } from 'react';
+import { Group } from './types';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import Dashboard from './components/Dashboard';
+import GroupDetail from './components/GroupDetail';
+import Header from './components/Header';
+
+const App: React.FC = () => {
+  const [groups, setGroups] = useLocalStorage<Group[]>('baksak-groups', []);
+  const [activeView, setActiveView] = useState<'dashboard' | 'group'>('dashboard');
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  const handleCreateGroup = (newGroup: Group) => {
+    setGroups([...groups, newGroup]);
+  };
+
+  const handleUpdateGroup = useCallback((updatedGroup: Group) => {
+    setGroups(prevGroups => prevGroups.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+  }, [setGroups]);
+
+  const handleDeleteGroup = (groupId: string) => {
+    if (window.confirm('آیا از حذف این گروه مطمئن هستید؟ این عمل قابل بازگشت نیست.')) {
+      setGroups(groups.filter(g => g.id !== groupId));
+      setActiveView('dashboard');
+      setSelectedGroupId(null);
+    }
+  };
+
+  const handleSelectGroup = (groupId: string) => {
+    setSelectedGroupId(groupId);
+    setActiveView('group');
+  };
+
+  const handleNavigateToDashboard = () => {
+    setActiveView('dashboard');
+    setSelectedGroupId(null);
+  };
+
+  const selectedGroup = groups.find(g => g.id === selectedGroupId);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className="container mx-auto p-4 md:p-6">
+        {activeView === 'dashboard' && (
+          <Dashboard
+            groups={groups}
+            onCreateGroup={handleCreateGroup}
+            onSelectGroup={handleSelectGroup}
+          />
+        )}
+        {activeView === 'group' && selectedGroup && (
+          <GroupDetail
+            group={selectedGroup}
+            onUpdateGroup={handleUpdateGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onBack={handleNavigateToDashboard}
+          />
+        )}
+      </main>
+      <footer className="text-center p-4 text-gray-500 text-sm">
+        <p>ساخته شده برای مدیریت آسان «بکسک‌ما»</p>
+      </footer>
+    </div>
+  );
+};
+
+export default App;

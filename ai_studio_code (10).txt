@@ -1,0 +1,129 @@
+import React from 'react';
+import { Group, Member } from '../types';
+import { exportGroupToPDF } from '../services/pdfService';
+import { DownloadIcon } from './icons/DownloadIcon';
+import { TrashIcon } from './icons/TrashIcon';
+
+interface GroupDetailProps {
+  group: Group;
+  onUpdateGroup: (updatedGroup: Group) => void;
+  onDeleteGroup: (groupId: string) => void;
+  onBack: () => void;
+}
+
+const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDeleteGroup, onBack }) => {
+
+  const handleRunLottery = () => {
+    if (group.lotteryRun || !window.confirm('آیا از اجرای قرعه‌کشی مطمئن هستید؟ پس از اجرا، ترتیب نوبت‌ها ثابت خواهد ماند.')) {
+      return;
+    }
+
+    const shuffledMembers = [...group.members].sort(() => Math.random() - 0.5);
+    const updatedMembers = shuffledMembers.map((member, index) => ({
+      ...member,
+      turn: index + 1,
+    }));
+    
+    onUpdateGroup({ ...group, members: updatedMembers, lotteryRun: true });
+  };
+
+  const handleTogglePayment = (memberId: string, monthIndex: number) => {
+    const paymentIndex = group.payments.findIndex(p => p.memberId === memberId && p.month === monthIndex);
+    
+    let updatedPayments = [...group.payments];
+
+    if (paymentIndex > -1) {
+      updatedPayments[paymentIndex] = { ...updatedPayments[paymentIndex], paid: !updatedPayments[paymentIndex].paid };
+    } else {
+      updatedPayments.push({ memberId, month: monthIndex, paid: true });
+    }
+    
+    onUpdateGroup({ ...group, payments: updatedPayments });
+  };
+
+  const sortedMembers = group.lotteryRun ? [...group.members].sort((a, b) => a.turn! - b.turn!) : group.members;
+  const totalMonths = group.members.length;
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-lg">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4">
+        <div>
+          <button onClick={onBack} className="text-purple-600 hover:underline mb-2">&larr; بازگشت به داشبورد</button>
+          <h2 className="text-3xl font-bold text-gray-800">{group.name}</h2>
+          <p className="text-gray-500">
+            مبلغ سهم: {group.shareAmount.toLocaleString()} {group.currency.symbol} | اعضا: {group.members.length} نفر
+          </p>
+        </div>
+        <div className="flex gap-2 mt-4 md:mt-0">
+          <button onClick={() => exportGroupToPDF(group)} className="flex items-center gap-2 bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+            <DownloadIcon />
+            <span>دانلود PDF</span>
+          </button>
+          <button onClick={() => onDeleteGroup(group.id)} className="flex items-center gap-2 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
+            <TrashIcon />
+            <span>حذف گروه</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Lottery Section */}
+      <div className="mb-6">
+        <h3 className="text-xl font-bold mb-3 text-gray-700">ترتیب نوبت‌ها</h3>
+        {!group.lotteryRun ? (
+          <div className="bg-purple-50 p-4 rounded-lg text-center">
+            <p className="mb-4">قرعه‌کشی هنوز انجام نشده است.</p>
+            <button onClick={handleRunLottery} className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+              اجرای قرعه‌کشی
+            </button>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {sortedMembers.map((member, index) => (
+              <li key={member.id} className="flex items-center justify-between bg-gray-100 p-3 rounded-md">
+                <span className="font-semibold text-gray-800">{member.name}</span>
+                <span className="text-sm font-bold bg-purple-200 text-purple-800 px-3 py-1 rounded-full">نوبت {member.turn}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Payment Tracking Section */}
+      <div>
+        <h3 className="text-xl font-bold mb-4 text-gray-700">جدول پرداخت‌ها</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-200 text-center">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="py-3 px-2 border-b font-semibold text-gray-600">عضو</th>
+                {Array.from({ length: totalMonths }, (_, i) => (
+                  <th key={i} className="py-3 px-2 border-b font-semibold text-gray-600">ماه {i + 1}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedMembers.map(member => (
+                <tr key={member.id} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-2 border-b font-semibold text-right">{member.name}</td>
+                  {Array.from({ length: totalMonths }, (_, monthIndex) => {
+                    const payment = group.payments.find(p => p.memberId === member.id && p.month === monthIndex);
+                    const isPaid = payment?.paid || false;
+                    return (
+                      <td key={monthIndex} className="py-3 px-2 border-b">
+                        <button onClick={() => handleTogglePayment(member.id, monthIndex)} className={`w-8 h-8 rounded-full text-lg font-bold flex items-center justify-center mx-auto ${isPaid ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                          {isPaid ? '✓' : '✗'}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GroupDetail;

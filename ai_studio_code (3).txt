@@ -1,0 +1,23 @@
+export interface Member {
+  id: string;
+  name: string;
+  turn?: number;
+}
+
+export interface Payment {
+  memberId: string;
+  month: number; // 0-indexed month
+  paid: boolean;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  members: Member[];
+  shareAmount: number;
+  currency: { symbol: string; code: string };
+  startDate: string; // ISO string
+  lotteryRun: boolean;
+  payments: Payment[];
+  accessCode: string;
+}

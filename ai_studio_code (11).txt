@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Group, Member } from '../types';
+import { Group } from '../types';
 import { CURRENCIES } from '../constants';
 import { generateId, generateAccessCode } from '../services/utils';
 import { TrashIcon } from './icons/TrashIcon';
@@ -14,31 +14,40 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, on
   const [groupName, setGroupName] = useState('');
   const [shareAmount, setShareAmount] = useState('');
   const [currency, setCurrency] = useState(CURRENCIES[0]);
-  const [members, setMembers] = useState<string[]>(['', '']);
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([
+    { id: generateId(), name: '' },
+    { id: generateId(), name: '' },
+  ]);
   const [error, setError] = useState('');
 
   const handleAddMember = () => {
-    setMembers([...members, '']);
+    setMembers([...members, { id: generateId(), name: '' }]);
   };
 
-  const handleRemoveMember = (index: number) => {
+  const handleRemoveMember = (id: string) => {
     if (members.length > 2) {
-      setMembers(members.filter((_, i) => i !== index));
+      setMembers(members.filter((m) => m.id !== id));
     }
   };
 
-  const handleMemberNameChange = (index: number, name: string) => {
-    const newMembers = [...members];
-    newMembers[index] = name;
-    setMembers(newMembers);
+  const handleMemberNameChange = (id: string, name: string) => {
+    if (error) setError('');
+    setMembers(members.map((member) => (member.id === id ? { ...member, name } : member)));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalMembers = members.map(name => name.trim()).filter(name => name !== '');
+    setError('');
+    const finalMembers = members.map(m => ({ ...m, name: m.name.trim() })).filter(m => m.name !== '');
 
     if (!groupName.trim() || !shareAmount || finalMembers.length < 2) {
       setError('لطفاً تمام فیلدها را پر کنید و حداقل دو عضو وارد نمایید.');
+      return;
+    }
+
+    const memberNames = finalMembers.map(m => m.name);
+    if (new Set(memberNames).size !== memberNames.length) {
+      setError('نام اعضا نمی‌تواند تکراری باشد.');
       return;
     }
 
@@ -50,7 +59,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, on
       currency: currency,
       startDate: new Date().toISOString(),
       lotteryRun: false,
-      members: finalMembers.map(name => ({ id: generateId(), name })),
+      members: finalMembers.map(m => ({id: m.id, name: m.name})),
       payments: [],
     };
 
@@ -63,18 +72,19 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, on
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b">
+        <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800">ایجاد گروه جدید</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl" aria-label="بستن">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-1">نام گروه</label>
-            <input type="text" id="groupName" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required />
+            <input type="text" id="groupName" value={groupName} onChange={(e) => { setGroupName(e.target.value); if (error) setError(''); }} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="shareAmount" className="block text-sm font-medium text-gray-700 mb-1">مبلغ سهم ماهانه</label>
-              <input type="number" id="shareAmount" value={shareAmount} onChange={(e) => setShareAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required />
+              <input type="number" min="0" id="shareAmount" value={shareAmount} onChange={(e) => { setShareAmount(e.target.value); if (error) setError(''); }} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required />
             </div>
             <div>
               <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">واحد پول</label>
@@ -87,10 +97,10 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, on
             <h3 className="text-lg font-medium text-gray-700 mb-2">اعضای گروه</h3>
             <div className="space-y-2">
               {members.map((member, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input type="text" placeholder={`نام عضو ${index + 1}`} value={member} onChange={(e) => handleMemberNameChange(index, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                <div key={member.id} className="flex items-center gap-2">
+                  <input type="text" placeholder={`نام عضو ${index + 1}`} value={member.name} onChange={(e) => handleMemberNameChange(member.id, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
                   {members.length > 2 && (
-                    <button type="button" onClick={() => handleRemoveMember(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full">
+                    <button type="button" onClick={() => handleRemoveMember(member.id)} className="p-2 text-red-500 hover:bg-red-100 rounded-full" aria-label={`حذف عضو ${index + 1}`}>
                       <TrashIcon />
                     </button>
                   )}
@@ -99,8 +109,12 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, on
             </div>
             <button type="button" onClick={handleAddMember} className="mt-2 text-purple-600 font-semibold hover:underline">افزودن عضو جدید</button>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex justify-end gap-4 pt-4 border-t mt-4">
+          
+          <div className="min-h-[2rem] flex items-center">
+            {error && <p className="text-red-500 text-sm" role="alert">{error}</p>}
+          </div>
+
+          <div className="flex justify-end gap-4 pt-4 border-t">
             <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">لغو</button>
             <button type="submit" className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors">ایجاد گروه</button>
           </div>

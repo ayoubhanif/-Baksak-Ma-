@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Group } from '../types';
 import CreateGroupModal from './CreateGroupModal';
 import { PlusIcon } from './icons/PlusIcon';
+import { EmptyStateIcon } from './icons/EmptyStateIcon';
 
 interface DashboardProps {
   groups: Group[];
@@ -18,7 +19,7 @@ const Dashboard: React.FC<DashboardProps> = ({ groups, onCreateGroup, onSelectGr
         <h2 className="text-2xl font-bold text-gray-800">گروه‌های من</h2>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors shadow"
+          className="flex items-center gap-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
         >
           <PlusIcon />
           <span>ایجاد گروه جدید</span>
@@ -26,19 +27,23 @@ const Dashboard: React.FC<DashboardProps> = ({ groups, onCreateGroup, onSelectGr
       </div>
 
       {groups.length === 0 ? (
-        <div className="text-center py-10 px-6 bg-white rounded-lg shadow">
-          <h3 className="text-xl text-gray-700">هیچ گروهی یافت نشد.</h3>
-          <p className="text-gray-500 mt-2">برای شروع، یک گروه جدید ایجاد کنید.</p>
+        <div className="text-center py-16 px-6 bg-white rounded-lg shadow-sm border-2 border-dashed">
+          <EmptyStateIcon />
+          <h3 className="mt-4 text-xl text-gray-800 font-semibold">هنوز گروهی نساخته‌اید</h3>
+          <p className="text-gray-500 mt-2">برای شروع، روی دکمه «ایجاد گروه جدید» کلیک کنید.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {groups.map((group) => (
             <div
               key={group.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectGroup(group.id)}
-              className="bg-white rounded-xl shadow-md p-6 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-300"
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectGroup(group.id)}
+              className="bg-white rounded-xl shadow-md p-6 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
             >
-              <h3 className="text-xl font-bold text-purple-800">{group.name}</h3>
+              <h3 className="text-xl font-bold text-purple-800 group-hover:text-indigo-600 transition-colors duration-300">{group.name}</h3>
               <p className="text-gray-600 mt-2">
                 تعداد اعضا: <span className="font-semibold">{group.members.length}</span>
               </p>

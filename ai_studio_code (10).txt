@@ -1,8 +1,12 @@
-import React from 'react';
-import { Group, Member } from '../types';
+import React, { useState } from 'react';
+import { Group } from '../types';
 import { exportGroupToPDF } from '../services/pdfService';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { TrashIcon } from './icons/TrashIcon';
+import { EditIcon } from './icons/EditIcon';
+import { ClipboardIcon } from './icons/ClipboardIcon';
+import ConfirmationModal from './ConfirmationModal';
+import EditGroupModal from './EditGroupModal';
 
 interface GroupDetailProps {
   group: Group;
@@ -12,12 +16,19 @@ interface GroupDetailProps {
 }
 
 const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDeleteGroup, onBack }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLotteryConfirm, setShowLotteryConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAccessCode = () => {
+    navigator.clipboard.writeText(group.accessCode).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const handleRunLottery = () => {
-    if (group.lotteryRun || !window.confirm('آیا از اجرای قرعه‌کشی مطمئن هستید؟ پس از اجرا، ترتیب نوبت‌ها ثابت خواهد ماند.')) {
-      return;
-    }
-
     const shuffledMembers = [...group.members].sort(() => Math.random() - 0.5);
     const updatedMembers = shuffledMembers.map((member, index) => ({
       ...member,
@@ -25,7 +36,13 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
     }));
     
     onUpdateGroup({ ...group, members: updatedMembers, lotteryRun: true });
+    setShowLotteryConfirm(false);
   };
+
+  const confirmDelete = () => {
+    onDeleteGroup(group.id);
+    setShowDeleteConfirm(false);
+  }
 
   const handleTogglePayment = (memberId: string, monthIndex: number) => {
     const paymentIndex = group.payments.findIndex(p => p.memberId === memberId && p.month === monthIndex);
@@ -48,18 +65,29 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
     <div className="bg-white p-6 rounded-lg shadow-lg">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4">
         <div>
-          <button onClick={onBack} className="text-purple-600 hover:underline mb-2">&larr; بازگشت به داشبورد</button>
+          <button onClick={onBack} className="text-purple-600 hover:underline mb-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 rounded">&larr; بازگشت به داشبورد</button>
           <h2 className="text-3xl font-bold text-gray-800">{group.name}</h2>
-          <p className="text-gray-500">
-            مبلغ سهم: {group.shareAmount.toLocaleString()} {group.currency.symbol} | اعضا: {group.members.length} نفر
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-500 mt-2">
+            <span>مبلغ سهم: {group.shareAmount.toLocaleString()} {group.currency.symbol}</span>
+            <span>اعضا: {group.members.length} نفر</span>
+            <div className="flex items-center gap-2">
+                <span>کد گروه: <span className="font-mono bg-gray-100 p-1 rounded">{group.accessCode}</span></span>
+                <button onClick={handleCopyAccessCode} title="کپی کردن کد" className="text-gray-500 hover:text-purple-600 p-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+                    {copied ? <span className="text-sm text-green-600">کپی شد!</span> : <ClipboardIcon />}
+                </button>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <button onClick={() => exportGroupToPDF(group)} className="flex items-center gap-2 bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+        <div className="flex gap-2 mt-4 md:mt-0 flex-shrink-0">
+          <button onClick={() => setShowEditModal(true)} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2">
+              <EditIcon />
+              <span>ویرایش</span>
+          </button>
+          <button onClick={() => exportGroupToPDF(group)} className="flex items-center gap-2 bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
             <DownloadIcon />
             <span>دانلود PDF</span>
           </button>
-          <button onClick={() => onDeleteGroup(group.id)} className="flex items-center gap-2 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
+          <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-2 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">
             <TrashIcon />
             <span>حذف گروه</span>
           </button>
@@ -72,13 +100,13 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
         {!group.lotteryRun ? (
           <div className="bg-purple-50 p-4 rounded-lg text-center">
             <p className="mb-4">قرعه‌کشی هنوز انجام نشده است.</p>
-            <button onClick={handleRunLottery} className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+            <button onClick={() => setShowLotteryConfirm(true)} className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">
               اجرای قرعه‌کشی
             </button>
           </div>
         ) : (
           <ul className="space-y-2">
-            {sortedMembers.map((member, index) => (
+            {sortedMembers.map((member) => (
               <li key={member.id} className="flex items-center justify-between bg-gray-100 p-3 rounded-md">
                 <span className="font-semibold text-gray-800">{member.name}</span>
                 <span className="text-sm font-bold bg-purple-200 text-purple-800 px-3 py-1 rounded-full">نوبت {member.turn}</span>
@@ -95,7 +123,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
           <table className="min-w-full bg-white border border-gray-200 text-center">
             <thead>
               <tr className="bg-gray-100">
-                <th className="py-3 px-2 border-b font-semibold text-gray-600">عضو</th>
+                <th className="py-3 px-2 border-b font-semibold text-gray-600 text-right">عضو</th>
                 {Array.from({ length: totalMonths }, (_, i) => (
                   <th key={i} className="py-3 px-2 border-b font-semibold text-gray-600">ماه {i + 1}</th>
                 ))}
@@ -110,7 +138,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
                     const isPaid = payment?.paid || false;
                     return (
                       <td key={monthIndex} className="py-3 px-2 border-b">
-                        <button onClick={() => handleTogglePayment(member.id, monthIndex)} className={`w-8 h-8 rounded-full text-lg font-bold flex items-center justify-center mx-auto ${isPaid ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                        <button onClick={() => handleTogglePayment(member.id, monthIndex)} className={`w-8 h-8 rounded-full text-lg font-bold flex items-center justify-center mx-auto transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${isPaid ? 'bg-green-500 text-white focus-visible:ring-green-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300 focus-visible:ring-gray-400'}`}>
                           {isPaid ? '✓' : '✗'}
                         </button>
                       </td>
@@ -122,6 +150,32 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ group, onUpdateGroup, onDelet
           </table>
         </div>
       </div>
+
+      <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={confirmDelete}
+          title="حذف گروه"
+          message={`آیا از حذف گروه «${group.name}» مطمئن هستید؟ این عمل قابل بازگشت نیست.`}
+          confirmText="بله، حذف کن"
+      />
+      <ConfirmationModal
+          isOpen={showLotteryConfirm}
+          onClose={() => setShowLotteryConfirm(false)}
+          onConfirm={handleRunLottery}
+          title="اجرای قرعه‌کشی"
+          message="آیا از اجرای قرعه‌کشی مطمئن هستید؟ پس از اجرا، ترتیب نوبت‌ها و لیست اعضا ثابت خواهد ماند."
+          confirmText="بله، اجرا کن"
+          confirmButtonClass="bg-purple-600 hover:bg-purple-700"
+      />
+      {showEditModal && (
+          <EditGroupModal
+              isOpen={showEditModal}
+              onClose={() => setShowEditModal(false)}
+              group={group}
+              onUpdateGroup={onUpdateGroup}
+          />
+      )}
     </div>
   );
 };
